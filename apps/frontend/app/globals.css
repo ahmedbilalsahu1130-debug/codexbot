@@ -1,0 +1,6 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body { @apply bg-bg text-white; }
+.card { @apply bg-card/80 border border-white/10 rounded-xl p-4 shadow-xl shadow-black/20 backdrop-blur; }

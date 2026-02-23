@@ -1,0 +1,288 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Timeframe {
+  M1
+  M5
+  M15
+  M30
+  H1
+  H4
+}
+
+enum RegimeLabel {
+  COMPRESSION
+  TREND
+  RANGE
+  EXPANSION_CHAOS
+}
+
+enum EngineType {
+  BREAKOUT
+  CONTINUATION
+  REVERSAL
+}
+
+enum Direction {
+  LONG
+  SHORT
+}
+
+enum OrderType {
+  LIMIT
+  MARKET
+}
+
+enum OrderStatus {
+  NEW
+  PARTIALLY_FILLED
+  FILLED
+  CANCELED
+  REJECTED
+  EXPIRED
+}
+
+enum PositionStatus {
+  OPEN
+  CLOSED
+  LIQUIDATED
+}
+
+model Symbol {
+  id          String   @id @default(cuid())
+  exchange    String
+  native      String
+  unified     String   @unique
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  candles     Candle[]
+  indicators  Indicator[]
+  regimes     Regime[]
+  signals     Signal[]
+  profiles    CoinProfile[]
+  positions   Position[]
+  orders      Order[]
+}
+
+model Candle {
+  id          String    @id @default(cuid())
+  symbolId    String
+  timeframe   Timeframe
+  timestamp   DateTime
+  open        Float
+  high        Float
+  low         Float
+  close       Float
+  volume      Float
+  symbol      Symbol    @relation(fields: [symbolId], references: [id])
+
+  @@unique([symbolId, timeframe, timestamp])
+  @@index([symbolId, timeframe, timestamp])
+}
+
+model Indicator {
+  id          String    @id @default(cuid())
+  symbolId    String
+  timeframe   Timeframe
+  timestamp   DateTime
+  atr         Float?
+  atrPct      Float?
+  ewmaVar     Float?
+  sigma       Float?
+  sigmaNorm   Float?
+  volPctile   Float?
+  bbWidthPct  Float?
+  bbPctile    Float?
+  ema20       Float?
+  ema50       Float?
+  ema200      Float?
+  ema50Slope  Float?
+  slopePctile Float?
+  volumePctile Float?
+  payload     Json?
+  symbol      Symbol    @relation(fields: [symbolId], references: [id])
+
+  @@unique([symbolId, timeframe, timestamp])
+  @@index([symbolId, timeframe, timestamp])
+}
+
+model Regime {
+  id          String      @id @default(cuid())
+  symbolId    String
+  timestamp   DateTime
+  label       RegimeLabel
+  inputs      Json
+  symbol      Symbol      @relation(fields: [symbolId], references: [id])
+
+  @@index([symbolId, timestamp])
+}
+
+model CoinProfile {
+  id             String   @id @default(cuid())
+  symbolId        String
+  weekStart       DateTime
+  liquidityScore  Float
+  volumeStability Float
+  atrMedian       Float
+  atrP75          Float
+  atrP90          Float
+  shockFrequency  Float
+  wickiness       Float
+  gapiness        Float
+  category        String
+  metrics         Json
+  symbol          Symbol   @relation(fields: [symbolId], references: [id])
+
+  @@unique([symbolId, weekStart])
+}
+
+model Signal {
+  id            String     @id @default(cuid())
+  symbolId       String
+  timestamp      DateTime
+  engine         EngineType
+  direction      Direction
+  accepted       Boolean
+  regime         RegimeLabel
+  params         Json
+  decisionPath   Json
+  rejectionCode  String?
+  symbol         Symbol     @relation(fields: [symbolId], references: [id])
+
+  @@index([symbolId, timestamp])
+}
+
+model Order {
+  id            String      @id @default(cuid())
+  symbolId       String
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
+  type           OrderType
+  side           Direction
+  price          Float
+  qty            Float
+  status         OrderStatus
+  postOnly       Boolean     @default(false)
+  timeoutSec     Int?
+  fee            Float       @default(0)
+  slippage       Float       @default(0)
+  meta           Json?
+  symbol         Symbol      @relation(fields: [symbolId], references: [id])
+  fills          Fill[]
+
+  @@index([symbolId, createdAt])
+}
+
+model Fill {
+  id         String   @id @default(cuid())
+  orderId    String
+  timestamp  DateTime @default(now())
+  price      Float
+  qty        Float
+  fee        Float
+  order      Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId, timestamp])
+}
+
+model Position {
+  id             String         @id @default(cuid())
+  symbolId        String
+  openTime        DateTime
+  closeTime       DateTime?
+  side            Direction
+  entry           Float
+  qty             Float
+  leverage        Float
+  stop            Float
+  status          PositionStatus
+  realized        Float          @default(0)
+  unrealized      Float          @default(0)
+  meta            Json?
+  symbol          Symbol         @relation(fields: [symbolId], references: [id])
+
+  @@index([symbolId, openTime])
+}
+
+model AccountSnapshot {
+  id           String   @id @default(cuid())
+  timestamp    DateTime @default(now())
+  equity       Float
+  drawdown     Float
+  usedMargin   Float
+  unrealized   Float
+  researchMode Boolean  @default(false)
+}
+
+model BacktestRun {
+  id          String           @id @default(cuid())
+  startedAt   DateTime         @default(now())
+  finishedAt  DateTime?
+  config      Json
+  metrics     BacktestMetrics?
+  trades      BacktestTrade[]
+}
+
+model BacktestMetrics {
+  id               String   @id @default(cuid())
+  runId            String   @unique
+  totalReturn      Float
+  maxDrawdown      Float
+  tradeCount       Int
+  winRate          Float
+  profitFactor     Float
+  avgR             Float
+  longestLosing    Int
+  regimeBreakdown  Json
+  symbolBreakdown  Json
+  run              BacktestRun @relation(fields: [runId], references: [id])
+}
+
+model BacktestTrade {
+  id          String   @id @default(cuid())
+  runId        String
+  symbol       String
+  side         Direction
+  openTime     DateTime
+  closeTime    DateTime
+  pnl          Float
+  rMultiple    Float
+  meta         Json
+  run          BacktestRun @relation(fields: [runId], references: [id])
+}
+
+model ParameterSet {
+  id          String             @id @default(cuid())
+  name        String             @unique
+  versions    ParameterVersion[]
+}
+
+model ParameterVersion {
+  id            String   @id @default(cuid())
+  parameterSetId String
+  effectiveFrom DateTime
+  params        Json
+  parameterSet   ParameterSet @relation(fields: [parameterSetId], references: [id])
+
+  @@index([parameterSetId, effectiveFrom])
+}
+
+model AuditEvent {
+  id         String   @id @default(cuid())
+  timestamp  DateTime @default(now())
+  symbol     String?
+  category   String
+  code       String
+  message    String
+  payload    Json?
+
+  @@index([timestamp])
+  @@index([symbol, timestamp])
+}

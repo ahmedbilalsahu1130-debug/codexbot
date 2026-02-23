@@ -1,0 +1,24 @@
+{
+  "name": "microstructure-vol-adaptive-futures-v2",
+  "private": true,
+  "version": "1.0.0",
+  "packageManager": "pnpm@9.12.3",
+  "scripts": {
+    "dev": "pnpm -r --parallel dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "format": "prettier --write .",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev",
+    "seed": "pnpm --filter backend seed"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.1",
+    "eslint": "^9.16.0",
+    "prettier": "^3.4.2",
+    "prisma": "^6.0.1",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  }
+}
